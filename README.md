@@ -117,5 +117,5 @@ This project is released under the MIT License.
 
 ---
 ```markdown
-![Lordmoritz Fortify](https://img.shields.io/badge/Security-Fortified-success?style=for-the-badge)
+Lordmoritz Fortify
 
