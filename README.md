@@ -1,7 +1,8 @@
-
 # Lordmoritz Fortify ⚡
 
-![Lordmoritz Fortify](https://img.shields.io/badge/FORTIFY-v1.0.0-purple?style=for-the-badge)
+![Lordmoritz Fortify](https://img.shields.io/badge/FORTIFY-v2.1.1-purple?style=for-the-badge)
+![GitHub License](https://img.shields.io/badge/License-MIT-blue.svg)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04%20%7C%2022.04%20%7C%2024.04-orange)
 
 ---
 
@@ -12,18 +13,21 @@ Designed by **Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)**.
 ---
 
 ## ✨ Features
-- ✅ Automated installation and setup of security tools
-- ✅ Harden firewall (`ufw`) and SSH (`/etc/ssh/sshd_config`)
-- ✅ Deploy unattended security patches (`unattended-upgrades`)
-- ✅ Set up nightly virus, rootkit, and integrity scans via cron jobs
-- ✅ Heal common system issues (Fail2Ban db recovery, AIDE db initialization)
-- ✅ Minimal system footprint and optimized for low-resource VMs
+
+- ✅ **Automated Security Tool Installation**: ClamAV, RKHunter, AIDE, Fail2Ban, UFW, and unattended-upgrades.
+- ✅ **Firewall and SSH Hardening**: Configures UFW and secures SSH with no root login and key-based authentication.
+- ✅ **Nightly Security Scans**: Scheduled scans for malware, rootkits, and filesystem integrity.
+- ✅ **Self-Healing**: Automatically fixes Fail2Ban database corruption and finalizes AIDE databases.
+- ✅ **Automatic Updates**: Enables unattended security patches with optional auto-reboot.
+- ✅ **Low Resource Usage**: Optimized for minimal system impact with `--skip-heavy-scans` option.
+- ✅ **Self-Upgrading**: Updates itself via `lordmoritz upgrade me` command.
+- ✅ **Detailed Logging**: Comprehensive reports in `/var/log/security-reports/`.
 
 ---
 
 ## 🚀 Quick Start
 
-1. **Clone the Repository:**
+1. **Clone the Repository**:
     ```bash
     git clone https://github.com/gentzycode/lordmoritz-fortify.git
     cd lordmoritz-fortify
@@ -41,9 +45,15 @@ Designed by **Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)**.
 
 4. *(Optional)* **Skip Heavy Scans:**
     ```bash
-    lordmoritz fortify me --skip-heavy-scans
+    sudo lordmoritz-fortify lordmoritz fortify me --skip-heavy-scans
+    sudo lordmoritz-fortify lordmoritz fortify me --no-ssh-hardening
+    sudo lordmoritz-fortify lordmoritz fortify me --no-auto-updates
     ```
 
+5. *(Optional)* **Skip Heavy Scans:**
+    ```bash
+    sudo lordmoritz-fortify lordmoritz upgrade me
+    ```
 ---
 
 ## 📂 Files and Structure
@@ -85,10 +95,29 @@ Designed by **Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)**.
 
 ---
 
+## 🛠️ Troubleshooting
+- 🔹 **Installation Issues**: Verify internet connectivity and sufficient disk space (df -h).
+- 🔹 **Cron Jobs**: Check scheduled tasks with crontab -l.
+- 🔹 **Logs**: Review detailed logs in /var/log/security-reports/.
+- 🔹 **Report Bugs**: Submit issues at GitHub Issues.
+
+---
+
 ## 📜 License
 
 **MIT License** — Free to use, modify, and distribute.
 
 © 2025 Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)
+
+---
+
+## 🙌 Contributing
+Contributions are welcome! Please:
+
+- Fork the repository.
+- Create a feature branch (git checkout -b feature/YourFeature).
+- Commit your changes (git commit -m 'Add YourFeature').
+- Push to the branch (git push origin feature/YourFeature).
+- Open a Pull Request.
 
 ---
