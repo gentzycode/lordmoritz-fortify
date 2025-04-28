@@ -61,7 +61,7 @@ Designed by **Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)**.
 | File | Purpose |
 |:-----|:--------|
 | `INSTALL.sh` | Installer and bootstrapper |
-| `fortify.sh` | Main fortification script |
+| `lordmoritz-fortify.sh` | Main fortification script |
 | `/var/log/security-reports/` | All security scan logs and operation reports |
 
 ---

@@ -97,7 +97,7 @@ self_upgrade() {
     if ! git pull origin main >> "${FORTIFY_LOG}" 2>&1; then
         log_warn "Git pull failed; check repository status manually."
     else
-        chmod +x fortify.sh
+        chmod +x lordmoritz-fortify.sh
         log_success "Lordmoritz Fortify script updated successfully!"
         echo -e "\n🛡️ Please re-run 'sudo lordmoritz-fortify lordmoritz fortify me' to apply the updated script."
         exit 0
