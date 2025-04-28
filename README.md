@@ -50,7 +50,7 @@ Designed by **Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)**.
     sudo lordmoritz-fortify lordmoritz fortify me --no-auto-updates
     ```
 
-5. *(Optional)* **Skip Heavy Scans:**
+5. *(Optional)* **Upgrade Script:**
     ```bash
     sudo lordmoritz-fortify lordmoritz upgrade me
     ```
