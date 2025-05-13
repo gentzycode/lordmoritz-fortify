@@ -1,10 +1,10 @@
 #!/bin/bash
 # ======================================================
-# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.2
+# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.5
 # Author: Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)
 # Purpose: Fully automate Ubuntu VM hardening, monitoring, healing, and self-upgrading
 # License: MIT
-# Last Updated: 2025-05-13
+# Last Updated: 2025-05-13 22:58 WAT
 # ======================================================
 
 set -e  # Immediate exit on any error
@@ -48,6 +48,7 @@ SKIP_HEAVY_SCANS="false"
 SSH_HARDENING="true"
 AUTO_UPDATES="true"
 UNATTENDED_MODE="false"
+DRY_RUN="false"
 
 # --- Parse Arguments ---
 while [[ $# -gt 0 ]]; do
@@ -56,6 +57,7 @@ while [[ $# -gt 0 ]]; do
         --no-ssh-hardening) SSH_HARDENING="false"; shift ;;
         --no-auto-updates) AUTO_UPDATES="false"; shift ;;
         --unattended) UNATTENDED_MODE="true"; shift ;;
+        --dry-run) DRY_RUN="true"; shift ;;
         *) break ;;
     esac
 done
@@ -106,7 +108,7 @@ heal_aide() {
 }
 recommend_livepatch() {
     if ! command -v canonical-livepatch >/dev/null 2>&1 || ! canonical-livepatch status >/dev/null 2>&1; then
-        log_warn "Canonical Livepatch not detected. Consider enabling for zero-downtime kernel patches: https://Ubuntu.com/security/livepatch"
+        log_warn "Canonical Livepatch not detected. Consider enabling for zero-downtime kernel patches: https://ubuntu.com/security/livepatch"
     fi
 }
 backup_sshd_config() {
@@ -120,6 +122,12 @@ self_upgrade() {
         die "Installation directory not found: ${INSTALL_DIR}"
     fi
     cd "${INSTALL_DIR}" || die "Failed to access installation directory"
+    # Check for latest version
+    local latest_version
+    latest_version=$(curl -s https://api.github.com/repos/gentzycode/lordmoritz-fortify/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
+    if [[ "${latest_version}" != "v2.1.5" ]]; then
+        log_warn "Newer version ${latest_version} available! Consider updating manually."
+    fi
     if ! git pull origin main >> "${FORTIFY_LOG}" 2>&1; then
         log_warn "Git pull failed; check repository status manually."
     else
@@ -141,6 +149,7 @@ verify_command() {
         echo -e "  --no-ssh-hardening     (disable SSH hardening)"
         echo -e "  --no-auto-updates      (disable automatic security updates)"
         echo -e "  --unattended           (enable all firewall ports without prompting)"
+        echo -e "  --dry-run              (simulate actions without applying changes)"
         exit 1
     fi
 }
@@ -148,8 +157,10 @@ install_apt_packages() {
     local retries=3
     local attempt=1
     log "Updating package lists..."
+    spinner_start
     while [[ ${attempt} -le ${retries} ]]; do
         if apt update >> "${FORTIFY_LOG}" 2>&1; then
+            spinner_stop
             break
         fi
         log_warn "APT update failed (attempt ${attempt}/${retries}). Retrying..."
@@ -158,7 +169,12 @@ install_apt_packages() {
     done
     [[ ${attempt} -le ${retries} ]] || die "Failed to update APT after ${retries} attempts"
     log "Installing security packages..."
-    apt install -y clamav rkhunter aide fail2ban ufw unattended-upgrades >> "${FORTIFY_LOG}" 2>&1 || die "Failed to install required packages"
+    spinner_start
+    if ! apt install -y clamav rkhunter aide fail2ban ufw unattended-upgrades >> "${FORTIFY_LOG}" 2>&1; then
+        spinner_stop
+        die "Failed to install required packages"
+    fi
+    spinner_stop
 }
 configure_ufw_ports() {
     local enabled_ports=()
@@ -168,12 +184,22 @@ configure_ufw_ports() {
 
     # Backup current UFW rules
     local ufw_backup="/etc/ufw/ufw.bak.${FORTIFY_DATE}"
-    cp -r /etc/ufw "${ufw_backup}" || log_error "Failed to backup UFW rules"
-    log_success "Backed up UFW rules to ${ufw_backup}"
+    if [[ "${DRY_RUN}" != "true" ]]; then
+        cp -r /etc/ufw "${ufw_backup}" || log_error "Failed to backup UFW rules"
+        log_success "Backed up UFW rules to ${ufw_backup}"
+    else
+        log "Dry Run: Would back up UFW rules to ${ufw_backup}"
+    fi
 
     # Ensure UFW is enabled
     if ! ufw status | grep -q "Status: active"; then
-        ufw --force enable >> "${FORTIFY_LOG}" 2>&1 || die "Failed to enable UFW"
+        spinner_start
+        if [[ "${DRY_RUN}" != "true" ]]; then
+            ufw --force enable >> "${FORTIFY_LOG}" 2>&1 || die "Failed to enable UFW"
+        else
+            log "Dry Run: Would enable UFW"
+        fi
+        spinner_stop
     fi
 
     for port_entry in "${UFW_PORTS[@]}"; do
@@ -190,12 +216,19 @@ configure_ufw_ports() {
 
         # In unattended mode, enable all ports
         if [[ "${UNATTENDED_MODE}" == "true" ]]; then
-            if ufw allow "${rule}" >> "${FORTIFY_LOG}" 2>&1; then
-                enabled_ports+=("${name} (${rule})")
+            spinner_start
+            if [[ "${DRY_RUN}" != "true" ]]; then
+                if ufw allow "${rule}" >> "${FORTIFY_LOG}" 2>&1; then
+                    enabled_ports+=("${name} (${rule})")
+                else
+                    log_error "Failed to allow ${name} (${rule})"
+                    skipped_ports+=("${name} (${rule})")
+                fi
             else
-                log_error "Failed to allow ${name} (${rule})"
-                skipped_ports+=("${name} (${rule})")
+                log "Dry Run: Would allow ${name} (${rule})"
+                enabled_ports+=("${name} (${rule})")
             fi
+            spinner_stop
             continue
         fi
 
@@ -203,11 +236,29 @@ configure_ufw_ports() {
         read -p "Allow ${name} (${desc}, ${rule})? [y/N]: " answer
         answer="${answer,,}"
         if [[ "${answer}" == "y" || "${answer}" == "yes" ]]; then
-            if ufw allow "${rule}" >> "${FORTIFY_LOG}" 2>&1; then
-                enabled_ports+=("${name} (${rule})")
+            spinner_start
+            if [[ "${DRY_RUN}" != "true" ]]; then
+                if ufw allow "${rule}" >> "${FORTIFY_LOG}" 2>&1; then
+                    enabled_ports+=("${name} (${rule})")
+                else
+                    log_error "Failed to allow ${name} (${rule})"
+                    skipped_ports+=("${name} (${rule})")
+                fi
             else
-                log_error "Failed to allow ${name} (${rule})"
-                skipped_ports+=("${name} (${rule})")
+                log "Dry Run: Would allow ${name} (${rule})"
+                enabled_ports+=("${name} (${rule})")
+            fi
+            spinner_stop
+
+            # Special handling for MySQL and PostgreSQL
+            if [[ "${name}" == "MySQL" || "${name}" == "PostgreSQL" ]]; then
+                read -p "Restrict ${name} to a specific IP? (Enter IP or leave blank for any): " ip
+                if [[ -n "${ip}" && "${DRY_RUN}" != "true" ]]; then
+                    ufw allow from "${ip}" to any port "${port}" proto "${proto}" >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to restrict ${name} to ${ip}"
+                    log_success "Restricted ${name} to ${ip}"
+                elif [[ -n "${ip}" && "${DRY_RUN}" == "true" ]]; then
+                    log "Dry Run: Would restrict ${name} to ${ip}"
+                fi
             fi
         else
             log "Skipping ${name} (${rule})"
@@ -217,24 +268,36 @@ configure_ufw_ports() {
 
     # Apply SSH rate limiting
     if [[ "${SSH_HARDENING}" == "true" ]]; then
-        ufw limit OpenSSH >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to limit OpenSSH"
+        spinner_start
+        if [[ "${DRY_RUN}" != "true" ]]; then
+            ufw limit OpenSSH >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to limit OpenSSH"
+        else
+            log "Dry Run: Would limit OpenSSH"
+        fi
+        spinner_stop
     fi
 
     # Reload UFW
-    ufw reload >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to reload UFW"
+    spinner_start
+    if [[ "${DRY_RUN}" != "true" ]]; then
+        ufw reload >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to reload UFW"
+    else
+        log "Dry Run: Would reload UFW"
+    fi
+    spinner_stop
 
     # Log and display summary
     log "UFW Configuration Summary:"
     if [[ ${#enabled_ports[@]} -gt 0 ]]; then
-        log "Enabled ports:"
+        log "\e[32mEnabled ports:\e[0m"
         for port in "${enabled_ports[@]}"; do
-            log "  - ${port}"
+            log "  - \e[32m${port}\e[0m"
         done
     fi
     if [[ ${#skipped_ports[@]} -gt 0 ]]; then
-        log "Skipped ports:"
+        log "\e[33mSkipped ports:\e[0m"
         for port in "${skipped_ports[@]}"; do
-            log "  - ${port}"
+            log "  - \e[33m${port}\e[0m"
         done
     fi
 
@@ -250,7 +313,31 @@ configure_ufw_ports() {
     log "  - Regularly review open ports with 'ufw status numbered' and remove unused rules."
 }
 
+# --- New Helper Functions ---
+spinner_start() {
+    local pid=$!
+    local spin='-\|/'
+    local i=0
+    while kill -0 $pid 2>/dev/null; do
+        i=$(( (i + 1) % 4 ))
+        printf "\rProcessing... ${spin:$i:1}"
+        sleep 0.1
+    done
+    printf "\r"
+}
+
+# --- ASCII Art Banner ---
+print_banner() {
+    echo -e "\e[1;34m"
+    echo "========================================="
+    echo "   Lordmoritz Fortify v2.1.5 ⚡"
+    echo "   Ultimate Auto-Hardening Script"
+    echo "========================================="
+    echo -e "\e[0m"
+}
+
 # --- Main Execution ---
+print_banner
 verify_command
 check_root
 check_ubuntu_version
@@ -262,7 +349,7 @@ chown root:adm "${LOGDIR}"
 chmod 750 "${LOGDIR}"
 touch "${FORTIFY_LOG}" || die "Failed to create log file: ${FORTIFY_LOG}"
 
-log_success "=== [Lordmoritz Fortify v2.1.2 Start] ==="
+log_success "=== [Lordmoritz Fortify v2.1.5 Start] ==="
 
 # Phase 1: Install Essentials
 install_apt_packages

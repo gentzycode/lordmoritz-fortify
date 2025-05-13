@@ -6,11 +6,7 @@
 
 ---
 
-**The Ultimate Script for Automated Ubuntu VM Hardening, Healing, and Monitoring**  
-Built for professionals who demand automated, no-human-intervention security.  
-Designed by **Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)**.
-
----
+The Ultimate Script for Automated Ubuntu VM Hardening, Healing, and MonitoringBuilt for professionals who demand automated, no-human-intervention security.Designed by Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode).
 
 ✨ Features
 
@@ -20,9 +16,14 @@ Designed by **Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)**.
 ✅ Self-Healing: Automatically fixes Fail2Ban database corruption and finalizes AIDE databases.
 ✅ Automatic Updates: Enables unattended security patches with optional auto-reboot.
 ✅ Low Resource Usage: Optimized for minimal system impact with --skip-heavy-scans option.
-✅ Self-Upgrading: Updates itself via lordmoritz upgrade me command.
+✅ Self-Upgrading: Updates itself via lordmoritz upgrade me command with version check.
 ✅ Detailed Logging: Comprehensive reports in /var/log/security-reports/.
 ✅ UFW Rules Backup: Automatically backs up UFW rules before modification (introduced in v2.1.2).
+✅ Progress Spinner: Visual feedback during long operations (introduced in v2.1.3).
+✅ IP Restriction for Databases: Option to restrict MySQL/PostgreSQL to specific IPs (introduced in v2.1.3).
+✅ Dry Run Mode: Simulate actions without applying changes using --dry-run (introduced in v2.1.3).
+✅ ASCII Banner: Stylized startup banner for better user experience (introduced in v2.1.3).
+✅ Version Check: Alerts for newer versions during self-upgrade (introduced in v2.1.3).
 
 
 🚀 Quick Start
@@ -40,10 +41,12 @@ Fortify the VM:
 lordmoritz fortify me
 
 
-(Optional) Skip Heavy Scans:
+(Optional) Skip Heavy Scans or Simulate:
 sudo lordmoritz-fortify lordmoritz fortify me --skip-heavy-scans
 sudo lordmoritz-fortify lordmoritz fortify me --no-ssh-hardening
 sudo lordmoritz-fortify lordmoritz fortify me --no-auto-updates
+sudo lordmoritz-fortify lordmoritz fortify me --unattended
+sudo lordmoritz-fortify lordmoritz fortify me --dry-run
 
 
 (Optional) Upgrade Script:
@@ -110,16 +113,16 @@ Automatic security patches
 
 🖥️ System Requirements
 
-Ubuntu 20.04, 22.04 or newer
+Ubuntu 20.04, 22.04, or newer
 Root privileges
 
 
 🧠 Recommendations After Fortification
 
 🔹 Enable Canonical Livepatch: Canonical Livepatch Setup
-🔹 Set a Legal Warning Banner:Edit /etc/motd
-🔹 Monitor Nightly Reports:View /var/log/security-reports/
-🔹 Review/Adjust AIDE Rules if needed under /etc/aide/
+🔹 Set a Legal Warning Banner: Edit /etc/motd
+🔹 Monitor Nightly Reports: View /var/log/security-reports/
+🔹 Review/Adjust AIDE Rules: If needed, under /etc/aide/
 
 
 🛠️ Troubleshooting
@@ -142,5 +145,3 @@ Create a feature branch (git checkout -b feature/YourFeature).
 Commit your changes (git commit -m 'Add YourFeature').
 Push to the branch (git push origin feature/YourFeature).
 Open a Pull Request.
-
-
