@@ -4,7 +4,7 @@
 # Author: Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)
 # Purpose: Fully automate Ubuntu VM hardening, monitoring, healing, and self-upgrading
 # License: MIT
-# Last Updated: 2025-04-28
+# Last Updated: 2025-05-13
 # ======================================================
 
 set -e  # Immediate exit on any error
@@ -19,10 +19,35 @@ readonly FORTIFY_DATE=$(date +%Y%m%d_%H%M%S)
 readonly FORTIFY_LOG="${LOGDIR}/fortify_${FORTIFY_DATE}.log"
 readonly SUPPORTED_UBUNTU_VERSIONS=("20.04" "22.04" "24.04")
 readonly REQUIRED_DISK_SPACE=10485760  # 10GB in KB
+readonly UFW_PORTS=(
+    "OpenSSH:OpenSSH:tcp:SSH access"
+    "HTTP:80:tcp:Web server (HTTP)"
+    "HTTPS:443:tcp:Web server (HTTPS)"
+    "Webmin:10000:tcp:Webmin control panel"
+    "Usermin:20000:tcp:Usermin user interface"
+    "FileManager:12320:tcp:Virtualmin File Manager (optional)"
+    "NodeJS:3001:tcp:Custom Node.js application port"
+    "SMTP:25:tcp:Mail (SMTP)"
+    "SMTPS:465:tcp:Mail (SMTP over SSL)"
+    "SMTP_STARTTLS:587:tcp:Mail (SMTP with STARTTLS)"
+    "POP3:110:tcp:Mail (POP3)"
+    "POP3S:995:tcp:Mail (POP3 over SSL)"
+    "IMAP:143:tcp:Mail (IMAP)"
+    "IMAPS:993:tcp:Mail (IMAP over SSL)"
+    "FTP_Data:20:tcp:FTP data transfer (optional)"
+    "FTP_Control:21:tcp:FTP control (optional)"
+    "FTP_Passive:10000-10100:tcp:Passive FTP ports for ProFTPD (optional)"
+    "DNS:53:tcp:DNS server (if handling domain resolving)"
+    "DNS_UDP:53:udp:DNS server (UDP)"
+    "MySQL:3306:tcp:MySQL database (restrict to specific IPs if possible)"
+    "PostgreSQL:5432:tcp:PostgreSQL database (restrict to specific IPs if possible)"
+    "ICMP:proto_icmp:proto:Allow ICMP ping (optional)"
+)
 COMMAND="${*,,}"
 SKIP_HEAVY_SCANS="false"
 SSH_HARDENING="true"
 AUTO_UPDATES="true"
+UNATTENDED_MODE="false"
 
 # --- Parse Arguments ---
 while [[ $# -gt 0 ]]; do
@@ -30,6 +55,7 @@ while [[ $# -gt 0 ]]; do
         --skip-heavy-scans) SKIP_HEAVY_SCANS="true"; shift ;;
         --no-ssh-hardening) SSH_HARDENING="false"; shift ;;
         --no-auto-updates) AUTO_UPDATES="false"; shift ;;
+        --unattended) UNATTENDED_MODE="true"; shift ;;
         *) break ;;
     esac
 done
@@ -114,6 +140,7 @@ verify_command() {
         echo -e "  --skip-heavy-scans     (skip nightly scans for low-resource systems)"
         echo -e "  --no-ssh-hardening     (disable SSH hardening)"
         echo -e "  --no-auto-updates      (disable automatic security updates)"
+        echo -e "  --unattended           (enable all firewall ports without prompting)"
         exit 1
     fi
 }
@@ -132,6 +159,90 @@ install_apt_packages() {
     [[ ${attempt} -le ${retries} ]] || die "Failed to update APT after ${retries} attempts"
     log "Installing security packages..."
     apt install -y clamav rkhunter aide fail2ban ufw unattended-upgrades >> "${FORTIFY_LOG}" 2>&1 || die "Failed to install required packages"
+}
+configure_ufw_ports() {
+    local enabled_ports=()
+    local skipped_ports=()
+
+    log "Configuring UFW ports..."
+
+    # Ensure UFW is enabled
+    if ! ufw status | grep -q "Status: active"; then
+        ufw --force enable >> "${FORTIFY_LOG}" 2>&1 || die "Failed to enable UFW"
+    fi
+
+    for port_entry in "${UFW_PORTS[@]}"; do
+        IFS=':' read -r name port proto desc <<< "${port_entry}"
+        local rule=""
+        if [[ "${proto}" == "proto" ]]; then
+            rule="proto ${port}"
+        else
+            rule="${port}/${proto}"
+        fi
+
+        # Skip OpenSSH since it's already allowed
+        [[ "${name}" == "OpenSSH" ]] && continue
+
+        # In unattended mode, enable all ports
+        if [[ "${UNATTENDED_MODE}" == "true" ]]; then
+            if ufw allow "${rule}" >> "${FORTIFY_LOG}" 2>&1; then
+                enabled_ports+=("${name} (${rule})")
+            else
+                log_error "Failed to allow ${name} (${rule})"
+                skipped_ports+=("${name} (${rule})")
+            fi
+            continue
+        fi
+
+        # Interactive mode: prompt user
+        read -p "Allow ${name} (${desc}, ${rule})? [y/N]: " answer
+        answer="${answer,,}"
+        if [[ "${answer}" == "y" || "${answer}" == "yes" ]]; then
+            if ufw allow "${rule}" >> "${FORTIFY_LOG}" 2>&1; then
+                enabled_ports+=("${name} (${rule})")
+            else
+                log_error "Failed to allow ${name} (${rule})"
+                skipped_ports+=("${name} (${rule})")
+            fi
+        else
+            log "Skipping ${name} (${rule})"
+            skipped_ports+=("${name} (${rule})")
+        fi
+    done
+
+    # Apply SSH rate limiting
+    if [[ "${SSH_HARDENING}" == "true" ]]; then
+        ufw limit OpenSSH >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to limit OpenSSH"
+    fi
+
+    # Reload UFW
+    ufw reload >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to reload UFW"
+
+    # Log and display summary
+    log "UFW Configuration Summary:"
+    if [[ ${#enabled_ports[@]} -gt 0 ]]; then
+        log "Enabled ports:"
+        for port in "${enabled_ports[@]}"; do
+            log "  - ${port}"
+        done
+    fi
+    if [[ ${#skipped_ports[@]} -gt 0 ]]; then
+        log "Skipped ports:"
+        for port in "${skipped_ports[@]}"; do
+            log "  - ${port}"
+        done
+    fi
+
+    # Display current UFW status
+    log "Current UFW status:"
+    ufw status numbered >> "${FORTIFY_LOG}" 2>&1
+
+    # Provide security advice
+    log "Firewall Security Recommendations:"
+    log "  - Restrict MySQL/PostgreSQL (ports 3306/5432) to specific IPs if possible (e.g., 'ufw allow from <IP> to any port 3306')."
+    log "  - Verify the passive FTP port range (10000-10100) matches your ProFTPD configuration."
+    log "  - Disable ICMP (ping) if not needed for monitoring."
+    log "  - Regularly review open ports with 'ufw status numbered' and remove unused rules."
 }
 
 # --- Main Execution ---
@@ -152,11 +263,7 @@ log_success "=== [Lordmoritz Fortify v2.1.1 Start] ==="
 install_apt_packages
 
 # Phase 2: Configure UFW Firewall
-log "Configuring UFW firewall..."
-ufw allow OpenSSH >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to allow OpenSSH in UFW"
-if ! ufw --force enable >> "${FORTIFY_LOG}" 2>&1; then
-    log_warn "UFW enable failed; firewall may already be active"
-fi
+configure_ufw_ports
 
 # Phase 3: Schedule Nightly Scans
 if [[ "${SKIP_HEAVY_SCANS}" != "true" ]]; then
