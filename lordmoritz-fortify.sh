@@ -1,10 +1,10 @@
 #!/bin/bash
 # ======================================================
-# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.5
+# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.6
 # Author: Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)
 # Purpose: Fully automate Ubuntu VM hardening, monitoring, healing, and self-upgrading
 # License: MIT
-# Last Updated: 2025-05-13 22:58 WAT
+# Last Updated: 2025-05-13 23:25 WAT
 # ======================================================
 
 set -e  # Immediate exit on any error
@@ -108,7 +108,7 @@ heal_aide() {
 }
 recommend_livepatch() {
     if ! command -v canonical-livepatch >/dev/null 2>&1 || ! canonical-livepatch status >/dev/null 2>&1; then
-        log_warn "Canonical Livepatch not detected. Consider enabling for zero-downtime kernel patches: https://ubuntu.com/security/livepatch"
+        log_warn "Canonical Livepatch not detected. Consider enabling for zero-downtime kernel patches: https://Ubuntu.com/security/livepatch"
     fi
 }
 backup_sshd_config() {
@@ -125,7 +125,7 @@ self_upgrade() {
     # Check for latest version
     local latest_version
     latest_version=$(curl -s https://api.github.com/repos/gentzycode/lordmoritz-fortify/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
-    if [[ "${latest_version}" != "v2.1.5" ]]; then
+    if [[ "${latest_version}" != "v2.1.6" ]]; then
         log_warn "Newer version ${latest_version} available! Consider updating manually."
     fi
     if ! git pull origin main >> "${FORTIFY_LOG}" 2>&1; then
@@ -157,7 +157,7 @@ install_apt_packages() {
     local retries=3
     local attempt=1
     log "Updating package lists..."
-    spinner_start
+    spinner_start "Updating package lists"
     while [[ ${attempt} -le ${retries} ]]; do
         if apt update >> "${FORTIFY_LOG}" 2>&1; then
             spinner_stop
@@ -169,7 +169,7 @@ install_apt_packages() {
     done
     [[ ${attempt} -le ${retries} ]] || die "Failed to update APT after ${retries} attempts"
     log "Installing security packages..."
-    spinner_start
+    spinner_start "Installing packages"
     if ! apt install -y clamav rkhunter aide fail2ban ufw unattended-upgrades >> "${FORTIFY_LOG}" 2>&1; then
         spinner_stop
         die "Failed to install required packages"
@@ -193,7 +193,7 @@ configure_ufw_ports() {
 
     # Ensure UFW is enabled
     if ! ufw status | grep -q "Status: active"; then
-        spinner_start
+        spinner_start "Enabling UFW"
         if [[ "${DRY_RUN}" != "true" ]]; then
             ufw --force enable >> "${FORTIFY_LOG}" 2>&1 || die "Failed to enable UFW"
         else
@@ -216,7 +216,7 @@ configure_ufw_ports() {
 
         # In unattended mode, enable all ports
         if [[ "${UNATTENDED_MODE}" == "true" ]]; then
-            spinner_start
+            spinner_start "Configuring ${name}"
             if [[ "${DRY_RUN}" != "true" ]]; then
                 if ufw allow "${rule}" >> "${FORTIFY_LOG}" 2>&1; then
                     enabled_ports+=("${name} (${rule})")
@@ -236,7 +236,7 @@ configure_ufw_ports() {
         read -p "Allow ${name} (${desc}, ${rule})? [y/N]: " answer
         answer="${answer,,}"
         if [[ "${answer}" == "y" || "${answer}" == "yes" ]]; then
-            spinner_start
+            spinner_start "Configuring ${name}"
             if [[ "${DRY_RUN}" != "true" ]]; then
                 if ufw allow "${rule}" >> "${FORTIFY_LOG}" 2>&1; then
                     enabled_ports+=("${name} (${rule})")
@@ -268,7 +268,7 @@ configure_ufw_ports() {
 
     # Apply SSH rate limiting
     if [[ "${SSH_HARDENING}" == "true" ]]; then
-        spinner_start
+        spinner_start "Limiting OpenSSH"
         if [[ "${DRY_RUN}" != "true" ]]; then
             ufw limit OpenSSH >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to limit OpenSSH"
         else
@@ -278,7 +278,7 @@ configure_ufw_ports() {
     fi
 
     # Reload UFW
-    spinner_start
+    spinner_start "Reloading UFW"
     if [[ "${DRY_RUN}" != "true" ]]; then
         ufw reload >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to reload UFW"
     else
@@ -315,22 +315,32 @@ configure_ufw_ports() {
 
 # --- New Helper Functions ---
 spinner_start() {
-    local pid=$!
+    local message="$1"
     local spin='-\|/'
     local i=0
-    while kill -0 $pid 2>/dev/null; do
+    # Run spinner in the background
+    while true; do
         i=$(( (i + 1) % 4 ))
-        printf "\rProcessing... ${spin:$i:1}"
+        printf "\r$message... ${spin:$i:1}"
         sleep 0.1
-    done
-    printf "\r"
+    done &
+    SPINNER_PID=$!
+}
+
+spinner_stop() {
+    if [[ -n "${SPINNER_PID:-}" ]]; then
+        kill "$SPINNER_PID" 2>/dev/null
+        wait "$SPINNER_PID" 2>/dev/null
+        printf "\r%-70s\r" " "
+        unset SPINNER_PID
+    fi
 }
 
 # --- ASCII Art Banner ---
 print_banner() {
     echo -e "\e[1;34m"
     echo "========================================="
-    echo "   Lordmoritz Fortify v2.1.5 ⚡"
+    echo "   Lordmoritz Fortify v2.1.6 ⚡"
     echo "   Ultimate Auto-Hardening Script"
     echo "========================================="
     echo -e "\e[0m"
@@ -349,7 +359,7 @@ chown root:adm "${LOGDIR}"
 chmod 750 "${LOGDIR}"
 touch "${FORTIFY_LOG}" || die "Failed to create log file: ${FORTIFY_LOG}"
 
-log_success "=== [Lordmoritz Fortify v2.1.5 Start] ==="
+log_success "=== [Lordmoritz Fortify v2.1.6 Start] ==="
 
 # Phase 1: Install Essentials
 install_apt_packages
