@@ -1,6 +1,6 @@
 #!/bin/bash
 # ======================================================
-# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.1
+# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.2
 # Author: Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)
 # Purpose: Fully automate Ubuntu VM hardening, monitoring, healing, and self-upgrading
 # License: MIT
@@ -106,7 +106,7 @@ heal_aide() {
 }
 recommend_livepatch() {
     if ! command -v canonical-livepatch >/dev/null 2>&1 || ! canonical-livepatch status >/dev/null 2>&1; then
-        log_warn "Canonical Livepatch not detected. Consider enabling for zero-downtime kernel patches: https://ubuntu.com/security/livepatch"
+        log_warn "Canonical Livepatch not detected. Consider enabling for zero-downtime kernel patches: https://Ubuntu.com/security/livepatch"
     fi
 }
 backup_sshd_config() {
@@ -165,6 +165,11 @@ configure_ufw_ports() {
     local skipped_ports=()
 
     log "Configuring UFW ports..."
+
+    # Backup current UFW rules
+    local ufw_backup="/etc/ufw/ufw.bak.${FORTIFY_DATE}"
+    cp -r /etc/ufw "${ufw_backup}" || log_error "Failed to backup UFW rules"
+    log_success "Backed up UFW rules to ${ufw_backup}"
 
     # Ensure UFW is enabled
     if ! ufw status | grep -q "Status: active"; then
@@ -257,7 +262,7 @@ chown root:adm "${LOGDIR}"
 chmod 750 "${LOGDIR}"
 touch "${FORTIFY_LOG}" || die "Failed to create log file: ${FORTIFY_LOG}"
 
-log_success "=== [Lordmoritz Fortify v2.1.1 Start] ==="
+log_success "=== [Lordmoritz Fortify v2.1.2 Start] ==="
 
 # Phase 1: Install Essentials
 install_apt_packages
