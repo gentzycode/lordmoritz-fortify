@@ -1,7 +1,16 @@
-Lordmoritz Fortify ⚡
+# Lordmoritz Fortify ⚡
 
+![Lordmoritz Fortify](https://img.shields.io/badge/FORTIFY-v2.1.4-purple?style=for-the-badge)
+![GitHub License](https://img.shields.io/badge/License-MIT-blue.svg)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04%20%7C%2022.04%20%7C%2024.04-orange)
 
-The Ultimate Script for Automated Ubuntu VM Hardening, Healing, and MonitoringBuilt for professionals who demand automated, no-human-intervention security.Designed by Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode).
+---
+
+**The Ultimate Script for Automated Ubuntu VM Hardening, Healing, and Monitoring**  
+Built for professionals who demand automated, no-human-intervention security.  
+Designed by **Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)**.
+
+---
 
 ✨ Features
 
