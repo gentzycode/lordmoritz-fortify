@@ -1,6 +1,6 @@
 # Lordmoritz Fortify ⚡
 
-![Lordmoritz Fortify](https://img.shields.io/badge/FORTIFY-v2.1.4-purple?style=for-the-badge)
+![Lordmoritz Fortify](https://img.shields.io/badge/FORTIFY-v2.1.5-purple?style=for-the-badge)
 ![GitHub License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-20.04%20%7C%2022.04%20%7C%2024.04-orange)
 
