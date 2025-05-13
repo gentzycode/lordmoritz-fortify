@@ -1,10 +1,10 @@
 #!/bin/bash
 # ======================================================
-# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.6
+# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.7
 # Author: Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)
 # Purpose: Fully automate Ubuntu VM hardening, monitoring, healing, and self-upgrading
 # License: MIT
-# Last Updated: 2025-05-13 23:25 WAT
+# Last Updated: 2025-05-13 23:35 WAT
 # ======================================================
 
 set -e  # Immediate exit on any error
@@ -67,7 +67,7 @@ log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "${FORTIFY_LOG}"; }
 log_success() { echo -e "\e[32m[OK]\e[0m $1" | tee -a "${FORTIFY_LOG}"; }
 log_warn() { echo -e "\e[33m[WARNING]\e[0m $1" | tee -a "${FORTIFY_LOG}"; }
 log_error() { echo -e "\e[31m[ERROR]\e[0m $1" | tee -a "${FORTIFY_LOG}"; }
-die() { log_error "FATAL: $1"; exit 1; }
+die() { log_error "FATAL: $1"; spinner_stop; exit 1; }
 check_root() { [[ "$(id -u)" -eq 0 ]] || die "This script must be run as root."; }
 check_disk_space() {
     local available_space
@@ -108,7 +108,7 @@ heal_aide() {
 }
 recommend_livepatch() {
     if ! command -v canonical-livepatch >/dev/null 2>&1 || ! canonical-livepatch status >/dev/null 2>&1; then
-        log_warn "Canonical Livepatch not detected. Consider enabling for zero-downtime kernel patches: https://Ubuntu.com/security/livepatch"
+        log_warn "Canonical Livepatch not detected. Consider enabling for zero-downtime kernel patches: https://ubuntu.com/security/livepatch"
     fi
 }
 backup_sshd_config() {
@@ -125,7 +125,7 @@ self_upgrade() {
     # Check for latest version
     local latest_version
     latest_version=$(curl -s https://api.github.com/repos/gentzycode/lordmoritz-fortify/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
-    if [[ "${latest_version}" != "v2.1.6" ]]; then
+    if [[ "${latest_version}" != "v2.1.7" ]]; then
         log_warn "Newer version ${latest_version} available! Consider updating manually."
     fi
     if ! git pull origin main >> "${FORTIFY_LOG}" 2>&1; then
@@ -157,22 +157,28 @@ install_apt_packages() {
     local retries=3
     local attempt=1
     log "Updating package lists..."
+    # Clean up any existing apt locks
+    rm -f /var/lib/dpkg/lock-frontend /var/cache/apt/archives/lock 2>/dev/null
     spinner_start "Updating package lists"
     while [[ ${attempt} -le ${retries} ]]; do
         if apt update >> "${FORTIFY_LOG}" 2>&1; then
             spinner_stop
             break
+        else
+            log_warn "APT update failed (attempt ${attempt}/${retries}). Retrying..."
+            ((attempt++))
+            sleep 5
         fi
-        log_warn "APT update failed (attempt ${attempt}/${retries}). Retrying..."
-        ((attempt++))
-        sleep 5
     done
-    [[ ${attempt} -le ${retries} ]] || die "Failed to update APT after ${retries} attempts"
+    if [[ ${attempt} -gt ${retries} ]]; then
+        spinner_stop
+        die "Failed to update APT after ${retries} attempts. Check network or repository settings."
+    fi
     log "Installing security packages..."
     spinner_start "Installing packages"
     if ! apt install -y clamav rkhunter aide fail2ban ufw unattended-upgrades >> "${FORTIFY_LOG}" 2>&1; then
         spinner_stop
-        die "Failed to install required packages"
+        die "Failed to install required packages. Check logs for details."
     fi
     spinner_stop
 }
@@ -336,11 +342,17 @@ spinner_stop() {
     fi
 }
 
+# --- Cleanup on Exit ---
+cleanup() {
+    spinner_stop
+}
+trap cleanup EXIT
+
 # --- ASCII Art Banner ---
 print_banner() {
     echo -e "\e[1;34m"
     echo "========================================="
-    echo "   Lordmoritz Fortify v2.1.6 ⚡"
+    echo "   Lordmoritz Fortify v2.1.7 ⚡"
     echo "   Ultimate Auto-Hardening Script"
     echo "========================================="
     echo -e "\e[0m"
@@ -359,7 +371,7 @@ chown root:adm "${LOGDIR}"
 chmod 750 "${LOGDIR}"
 touch "${FORTIFY_LOG}" || die "Failed to create log file: ${FORTIFY_LOG}"
 
-log_success "=== [Lordmoritz Fortify v2.1.6 Start] ==="
+log_success "=== [Lordmoritz Fortify v2.1.7 Start] ==="
 
 # Phase 1: Install Essentials
 install_apt_packages
