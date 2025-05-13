@@ -6,150 +6,148 @@
 
 ---
 
-The Ultimate Script for Automated Ubuntu VM Hardening, Healing, and MonitoringBuilt for professionals who demand automated, no-human-intervention security.Designed by Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode).
+> 🛡️ **The Ultimate Script for Automated Ubuntu VM Hardening, Healing, and Monitoring**
+> Built for professionals who demand automated, no-human-intervention security.
+> Designed by **Chinonso Okoye** (*Lordmoritz / Gentmorris / Gentzycode*)
 
-✨ Features
+---
 
-✅ Automated Security Tool Installation: ClamAV, RKHunter, AIDE, Fail2Ban, UFW, and unattended-upgrades.
+## ✨ Features
 
-✅ Firewall and SSH Hardening: Configures UFW and secures SSH with no root login and key-based authentication.
+| ✅ Feature                    | 💡 Description                                                      |
+| ---------------------------- | ------------------------------------------------------------------- |
+| **Security Tools**           | Installs ClamAV, RKHunter, AIDE, Fail2Ban, UFW, unattended-upgrades |
+| **Firewall & SSH Hardening** | Disables root login, enables UFW, enforces strong SSH policies      |
+| **Nightly Scans**            | Runs daily checks for malware, rootkits, file integrity             |
+| **Self-Healing**             | Rebuilds corrupted Fail2Ban DB and finalizes AIDE DB automatically  |
+| **Auto-Updates**             | Enables unattended upgrades with optional auto-reboot               |
+| **Low Resource Impact**      | Use `--skip-heavy-scans` for lightweight operation                  |
+| **Self-Updating**            | Supports `lordmoritz upgrade me` to fetch the latest version        |
+| **Detailed Logs**            | Logs to `/var/log/security-reports/` with timestamped history       |
+| **UFW Backup**               | Auto-backs up UFW config before rule changes (v2.1.2+)              |
+| **Progress Spinner**         | Real-time visual feedback for long operations (v2.1.3+)             |
+| **Database IP Restriction**  | Restrict MySQL/PostgreSQL access to specific IPs (v2.1.3+)          |
+| **Dry Run Mode**             | Use `--dry-run` to simulate changes without execution (v2.1.3+)     |
+| **ASCII Art Banner**         | Enhanced UX with styled startup banner (v2.1.3+)                    |
+| **Version Awareness**        | Notifies if a newer version is available (v2.1.3+)                  |
 
-✅ Nightly Security Scans: Scheduled scans for malware, rootkits, and filesystem integrity.
+---
 
-✅ Self-Healing: Automatically fixes Fail2Ban database corruption and finalizes AIDE databases.
+## 🚀 Quick Start
 
-✅ Automatic Updates: Enables unattended security patches with optional auto-reboot.
+### 1. 📥 Clone the Repository
 
-✅ Low Resource Usage: Optimized for minimal system impact with --skip-heavy-scans option.
-
-✅ Self-Upgrading: Updates itself via lordmoritz upgrade me command.
-
-✅ Detailed Logging: Comprehensive reports in /var/log/security-reports/.
-
-✅ UFW Rules Backup: Automatically backs up UFW rules before modification (introduced in v2.1.2).
-✅ Progress Spinner: Visual feedback during long operations (introduced in v2.1.3).
-✅ IP Restriction for Databases: Option to restrict MySQL/PostgreSQL to specific IPs (introduced in v2.1.3).
-✅ Dry Run Mode: Simulate actions without applying changes using --dry-run (introduced in v2.1.3).
-✅ ASCII Banner: Stylized startup banner for better user experience (introduced in v2.1.3).
-✅ Version Check: Alerts for newer versions during self-upgrade (introduced in v2.1.3).
-
-
-🚀 Quick Start
-
-Clone the Repository:
+```bash
 git clone https://github.com/gentzycode/lordmoritz-fortify.git
 cd lordmoritz-fortify
+```
 
+### 2. 🧱 Run the Installer
 
-Run the Installer:
+```bash
 sudo bash INSTALL.sh
+```
 
+### 3. 🔐 Fortify the VM
 
-Fortify the VM:
-lordmoritz fortify me
+```bash
+sudo lordmoritz-fortify lordmoritz fortify me
+```
 
+### 4. ⚙️ Optional Usage Examples
 
-(Optional) Skip Heavy Scans or Simulate:
+```bash
+# Skip heavy scans (lightweight environments)
 sudo lordmoritz-fortify lordmoritz fortify me --skip-heavy-scans
-sudo lordmoritz-fortify lordmoritz fortify me --no-ssh-hardening
+
+# Disable SSH hardening\sudo lordmoritz-fortify lordmoritz fortify me --no-ssh-hardening
+
+# Disable automatic security updates
 sudo lordmoritz-fortify lordmoritz fortify me --no-auto-updates
+
+# Run without prompts (unattended mode)
 sudo lordmoritz-fortify lordmoritz fortify me --unattended
+
+# Dry-run mode (simulate actions without applying changes)
 sudo lordmoritz-fortify lordmoritz fortify me --dry-run
+```
 
+### 5. 🔁 Upgrade Script
 
-(Optional) Upgrade Script:
+```bash
 sudo lordmoritz-fortify lordmoritz upgrade me
+```
 
+---
 
+## 📁 Files and Structure
 
+| File/Folder                  | Purpose                              |
+| ---------------------------- | ------------------------------------ |
+| `INSTALL.sh`                 | Initial installer and bootstrapper   |
+| `lordmoritz-fortify.sh`      | Main fortification script            |
+| `/var/log/security-reports/` | Logs and nightly/weekly scan reports |
 
-📂 Files and Structure
+---
 
+## 🛡️ Security Activities Performed
 
+| Module           | Action                                   |
+| ---------------- | ---------------------------------------- |
+| **ClamAV**       | Full filesystem malware scans            |
+| **RKHunter**     | Rootkit detection and alerting           |
+| **AIDE**         | Filesystem integrity monitoring          |
+| **Fail2Ban**     | Blocks brute-force attacks               |
+| **UFW**          | Configures firewall and OpenSSH access   |
+| **Auto-Updates** | Enables daily automatic security patches |
 
-File
-Purpose
+---
 
+## 🖥️ System Requirements
 
+* Ubuntu **20.04**, **22.04**, or **24.04**
+* Root privileges (`sudo`)
 
-INSTALL.sh
-Installer and bootstrapper
+---
 
+## 🧠 Recommendations After Fortification
 
-lordmoritz-fortify.sh
-Main fortification script
+🔹 Enable Canonical Livepatch: [Canonical Livepatch Setup](https://ubuntu.com/security/livepatch)
+🔹 Set a Legal Warning Banner: Edit `/etc/motd`
+🔹 Monitor Nightly Reports: Check `/var/log/security-reports/`
+🔹 Review/Adjust AIDE Rules: Found under `/etc/aide/`
 
+---
 
-/var/log/security-reports/
-All security scan logs and operation reports
+## 🛠️ Troubleshooting
 
+| Issue                     | Suggestion                                           |
+| ------------------------- | ---------------------------------------------------- |
+| **Installation Fails**    | Check network and disk space (`df -h`)               |
+| **Cron Jobs Not Running** | Confirm with `crontab -l`                            |
+| **Missing Logs**          | Review `/var/log/security-reports/` for errors       |
+| **Script Errors**         | Use `--dry-run` to debug before full execution       |
+| **Git Issues**            | Ensure Git is installed and repo access is available |
 
+---
 
-🛡️ Security Activities Performed
+## 📜 License
 
-
-
-Module
-Action
-
-
-
-ClamAV
-Full filesystem malware scans
-
-
-RKHunter
-Rootkit detection and alerts
-
-
-AIDE
-Filesystem integrity monitoring
-
-
-Fail2Ban
-Protection against brute-force attacks
-
-
-UFW
-Firewall activation and OpenSSH allowance
-
-
-Auto-Updates
-Automatic security patches
-
-
-
-🖥️ System Requirements
-
-Ubuntu 20.04, 22.04, or newer
-Root privileges
-
-
-🧠 Recommendations After Fortification
-
-🔹 Enable Canonical Livepatch: Canonical Livepatch Setup
-🔹 Set a Legal Warning Banner: Edit /etc/motd
-🔹 Monitor Nightly Reports: View /var/log/security-reports/
-🔹 Review/Adjust AIDE Rules: If needed, under /etc/aide/
-
-
-🛠️ Troubleshooting
-
-🔹 Installation Issues: Verify internet connectivity and sufficient disk space (df -h).
-🔹 Cron Jobs: Check scheduled tasks with crontab -l.
-🔹 Logs: Review detailed logs in /var/log/security-reports/.
-🔹 Report Bugs: Submit issues at GitHub Issues.
-
-
-📜 License
 MIT License — Free to use, modify, and distribute.
 © 2025 Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)
 
-🙌 Contributing
-Contributions are welcome! Please:
+---
 
-Fork the repository.
-Create a feature branch (git checkout -b feature/YourFeature).
-Commit your changes (git commit -m 'Add YourFeature').
-Push to the branch (git push origin feature/YourFeature).
-Open a Pull Request.
+## 🙌 Contributing
+
+Contributions are welcome! Follow these steps:
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/YourFeature`
+3. Commit your changes: `git commit -m 'Add YourFeature'`
+4. Push to GitHub: `git push origin feature/YourFeature`
+5. Open a Pull Request on GitHub
+
+---
+
+🛡️ **Happy Hardening and Stay Secure!**
