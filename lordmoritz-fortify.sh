@@ -1,10 +1,10 @@
 #!/bin/bash
 # ======================================================
-# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.8
+# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.1
 # Author: Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)
 # Purpose: Fully automate Ubuntu VM hardening, monitoring, healing, and self-upgrading
 # License: MIT
-# Last Updated: 2025-05-13 23:52 WAT
+# Last Updated: 2025-04-28
 # ======================================================
 
 set -e  # Immediate exit on any error
@@ -19,36 +19,10 @@ readonly FORTIFY_DATE=$(date +%Y%m%d_%H%M%S)
 readonly FORTIFY_LOG="${LOGDIR}/fortify_${FORTIFY_DATE}.log"
 readonly SUPPORTED_UBUNTU_VERSIONS=("20.04" "22.04" "24.04")
 readonly REQUIRED_DISK_SPACE=10485760  # 10GB in KB
-readonly UFW_PORTS=(
-    "OpenSSH:OpenSSH:tcp:SSH access"
-    "HTTP:80:tcp:Web server (HTTP)"
-    "HTTPS:443:tcp:Web server (HTTPS)"
-    "Webmin:10000:tcp:Webmin control panel"
-    "Usermin:20000:tcp:Usermin user interface"
-    "FileManager:12320:tcp:Virtualmin File Manager (optional)"
-    "NodeJS:3001:tcp:Custom Node.js application port"
-    "SMTP:25:tcp:Mail (SMTP)"
-    "SMTPS:465:tcp:Mail (SMTP over SSL)"
-    "SMTP_STARTTLS:587:tcp:Mail (SMTP with STARTTLS)"
-    "POP3:110:tcp:Mail (POP3)"
-    "POP3S:995:tcp:Mail (POP3 over SSL)"
-    "IMAP:143:tcp:Mail (IMAP)"
-    "IMAPS:993:tcp:Mail (IMAP over SSL)"
-    "FTP_Data:20:tcp:FTP data transfer (optional)"
-    "FTP_Control:21:tcp:FTP control (optional)"
-    "FTP_Passive:10000-10100:tcp:Passive FTP ports for ProFTPD (optional)"
-    "DNS:53:tcp:DNS server (if handling domain resolving)"
-    "DNS_UDP:53:udp:DNS server (UDP)"
-    "MySQL:3306:tcp:MySQL database (restrict to specific IPs if possible)"
-    "PostgreSQL:5432:tcp:PostgreSQL database (restrict to specific IPs if possible)"
-    "ICMP:proto_icmp:proto:Allow ICMP ping (optional)"
-)
 COMMAND="${*,,}"
 SKIP_HEAVY_SCANS="false"
 SSH_HARDENING="true"
 AUTO_UPDATES="true"
-UNATTENDED_MODE="false"
-DRY_RUN="false"
 
 # --- Parse Arguments ---
 while [[ $# -gt 0 ]]; do
@@ -56,8 +30,6 @@ while [[ $# -gt 0 ]]; do
         --skip-heavy-scans) SKIP_HEAVY_SCANS="true"; shift ;;
         --no-ssh-hardening) SSH_HARDENING="false"; shift ;;
         --no-auto-updates) AUTO_UPDATES="false"; shift ;;
-        --unattended) UNATTENDED_MODE="true"; shift ;;
-        --dry-run) DRY_RUN="true"; shift ;;
         *) break ;;
     esac
 done
@@ -67,7 +39,7 @@ log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "${FORTIFY_LOG}"; }
 log_success() { echo -e "\e[32m[OK]\e[0m $1" | tee -a "${FORTIFY_LOG}"; }
 log_warn() { echo -e "\e[33m[WARNING]\e[0m $1" | tee -a "${FORTIFY_LOG}"; }
 log_error() { echo -e "\e[31m[ERROR]\e[0m $1" | tee -a "${FORTIFY_LOG}"; }
-die() { log_error "FATAL: $1"; spinner_stop; exit 1; }
+die() { log_error "FATAL: $1"; exit 1; }
 check_root() { [[ "$(id -u)" -eq 0 ]] || die "This script must be run as root."; }
 check_disk_space() {
     local available_space
@@ -122,12 +94,6 @@ self_upgrade() {
         die "Installation directory not found: ${INSTALL_DIR}"
     fi
     cd "${INSTALL_DIR}" || die "Failed to access installation directory"
-    # Check for latest version
-    local latest_version
-    latest_version=$(curl -s https://api.github.com/repos/gentzycode/lordmoritz-fortify/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
-    if [[ "${latest_version}" != "v2.1.8" ]]; then
-        log_warn "Newer version ${latest_version} available! Consider updating manually."
-    fi
     if ! git pull origin main >> "${FORTIFY_LOG}" 2>&1; then
         log_warn "Git pull failed; check repository status manually."
     else
@@ -148,8 +114,6 @@ verify_command() {
         echo -e "  --skip-heavy-scans     (skip nightly scans for low-resource systems)"
         echo -e "  --no-ssh-hardening     (disable SSH hardening)"
         echo -e "  --no-auto-updates      (disable automatic security updates)"
-        echo -e "  --unattended           (enable all firewall ports without prompting)"
-        echo -e "  --dry-run              (simulate actions without applying changes)"
         exit 1
     fi
 }
@@ -157,210 +121,20 @@ install_apt_packages() {
     local retries=3
     local attempt=1
     log "Updating package lists..."
-    # Clean up any existing apt locks
-    rm -f /var/lib/dpkg/lock-frontend /var/cache/apt/archives/lock 2>/dev/null
-    spinner_start "Updating package lists"
     while [[ ${attempt} -le ${retries} ]]; do
-        # Run apt update in a subshell to avoid set -e exit
-        if (apt update >> "${FORTIFY_LOG}" 2>&1); then
-            spinner_stop
+        if apt update >> "${FORTIFY_LOG}" 2>&1; then
             break
-        else
-            log_warn "APT update failed (attempt ${attempt}/${retries}). Retrying..."
-            ((attempt++))
-            sleep 5
         fi
+        log_warn "APT update failed (attempt ${attempt}/${retries}). Retrying..."
+        ((attempt++))
+        sleep 5
     done
-    if [[ ${attempt} -gt ${retries} ]]; then
-        spinner_stop
-        die "Failed to update APT after ${retries} attempts. Check network or repository settings."
-    fi
+    [[ ${attempt} -le ${retries} ]] || die "Failed to update APT after ${retries} attempts"
     log "Installing security packages..."
-    spinner_start "Installing packages"
-    if ! apt install -y clamav rkhunter aide fail2ban ufw unattended-upgrades >> "${FORTIFY_LOG}" 2>&1; then
-        spinner_stop
-        die "Failed to install required packages. Check logs for details."
-    fi
-    spinner_stop
-}
-configure_ufw_ports() {
-    local enabled_ports=()
-    local skipped_ports=()
-
-    log "Configuring UFW ports..."
-
-    # Backup current UFW rules
-    local ufw_backup="/etc/ufw/ufw.bak.${FORTIFY_DATE}"
-    if [[ "${DRY_RUN}" != "true" ]]; then
-        cp -r /etc/ufw "${ufw_backup}" || log_error "Failed to backup UFW rules"
-        log_success "Backed up UFW rules to ${ufw_backup}"
-    else
-        log "Dry Run: Would back up UFW rules to ${ufw_backup}"
-    fi
-
-    # Ensure UFW is enabled
-    if ! ufw status | grep -q "Status: active"; then
-        spinner_start "Enabling UFW"
-        if [[ "${DRY_RUN}" != "true" ]]; then
-            ufw --force enable >> "${FORTIFY_LOG}" 2>&1 || die "Failed to enable UFW"
-        else
-            log "Dry Run: Would enable UFW"
-        fi
-        spinner_stop
-    fi
-
-    for port_entry in "${UFW_PORTS[@]}"; do
-        IFS=':' read -r name port proto desc <<< "${port_entry}"
-        local rule=""
-        if [[ "${proto}" == "proto" ]]; then
-            rule="proto ${port}"
-        else
-            rule="${port}/${proto}"
-        fi
-
-        # Skip OpenSSH since it's already allowed
-        [[ "${name}" == "OpenSSH" ]] && continue
-
-        # In unattended mode, enable all ports
-        if [[ "${UNATTENDED_MODE}" == "true" ]]; then
-            spinner_start "Configuring ${name}"
-            if [[ "${DRY_RUN}" != "true" ]]; then
-                if ufw allow "${rule}" >> "${FORTIFY_LOG}" 2>&1; then
-                    enabled_ports+=("${name} (${rule})")
-                else
-                    log_error "Failed to allow ${name} (${rule})"
-                    skipped_ports+=("${name} (${rule})")
-                fi
-            else
-                log "Dry Run: Would allow ${name} (${rule})"
-                enabled_ports+=("${name} (${rule})")
-            fi
-            spinner_stop
-            continue
-        fi
-
-        # Interactive mode: prompt user
-        read -p "Allow ${name} (${desc}, ${rule})? [y/N]: " answer
-        answer="${answer,,}"
-        if [[ "${answer}" == "y" || "${answer}" == "yes" ]]; then
-            spinner_start "Configuring ${name}"
-            if [[ "${DRY_RUN}" != "true" ]]; then
-                if ufw allow "${rule}" >> "${FORTIFY_LOG}" 2>&1; then
-                    enabled_ports+=("${name} (${rule})")
-                else
-                    log_error "Failed to allow ${name} (${rule})"
-                    skipped_ports+=("${name} (${rule})")
-                fi
-            else
-                log "Dry Run: Would allow ${name} (${rule})"
-                enabled_ports+=("${name} (${rule})")
-            fi
-            spinner_stop
-
-            # Special handling for MySQL and PostgreSQL
-            if [[ "${name}" == "MySQL" || "${name}" == "PostgreSQL" ]]; then
-                read -p "Restrict ${name} to a specific IP? (Enter IP or leave blank for any): " ip
-                if [[ -n "${ip}" && "${DRY_RUN}" != "true" ]]; then
-                    ufw allow from "${ip}" to any port "${port}" proto "${proto}" >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to restrict ${name} to ${ip}"
-                    log_success "Restricted ${name} to ${ip}"
-                elif [[ -n "${ip}" && "${DRY_RUN}" == "true" ]]; then
-                    log "Dry Run: Would restrict ${name} to ${ip}"
-                fi
-            fi
-        else
-            log "Skipping ${name} (${rule})"
-            skipped_ports+=("${name} (${rule})")
-        fi
-    done
-
-    # Apply SSH rate limiting
-    if [[ "${SSH_HARDENING}" == "true" ]]; then
-        spinner_start "Limiting OpenSSH"
-        if [[ "${DRY_RUN}" != "true" ]]; then
-            ufw limit OpenSSH >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to limit OpenSSH"
-        else
-            log "Dry Run: Would limit OpenSSH"
-        fi
-        spinner_stop
-    fi
-
-    # Reload UFW
-    spinner_start "Reloading UFW"
-    if [[ "${DRY_RUN}" != "true" ]]; then
-        ufw reload >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to reload UFW"
-    else
-        log "Dry Run: Would reload UFW"
-    fi
-    spinner_stop
-
-    # Log and display summary
-    log "UFW Configuration Summary:"
-    if [[ ${#enabled_ports[@]} -gt 0 ]]; then
-        log "\e[32mEnabled ports:\e[0m"
-        for port in "${enabled_ports[@]}"; do
-            log "  - \e[32m${port}\e[0m"
-        done
-    fi
-    if [[ ${#skipped_ports[@]} -gt 0 ]]; then
-        log "\e[33mSkipped ports:\e[0m"
-        for port in "${skipped_ports[@]}"; do
-            log "  - \e[33m${port}\e[0m"
-        done
-    fi
-
-    # Display current UFW status
-    log "Current UFW status:"
-    ufw status numbered >> "${FORTIFY_LOG}" 2>&1
-
-    # Provide security advice
-    log "Firewall Security Recommendations:"
-    log "  - Restrict MySQL/PostgreSQL (ports 3306/5432) to specific IPs if possible (e.g., 'ufw allow from <IP> to any port 3306')."
-    log "  - Verify the passive FTP port range (10000-10100) matches your ProFTPD configuration."
-    log "  - Disable ICMP (ping) if not needed for monitoring."
-    log "  - Regularly review open ports with 'ufw status numbered' and remove unused rules."
-}
-
-# --- New Helper Functions ---
-spinner_start() {
-    local message="$1"
-    local spin='-\|/'
-    local i=0
-    # Run spinner in the background
-    while true; do
-        i=$(( (i + 1) % 4 ))
-        printf "\r$message... ${spin:$i:1}"
-        sleep 0.1
-    done &
-    SPINNER_PID=$!
-}
-
-spinner_stop() {
-    if [[ -n "${SPINNER_PID:-}" ]]; then
-        kill "$SPINNER_PID" 2>/dev/null
-        wait "$SPINNER_PID" 2>/dev/null
-        printf "\r%-70s\r" " "
-        unset SPINNER_PID
-    fi
-}
-
-# --- Cleanup on Exit ---
-cleanup() {
-    spinner_stop
-}
-trap cleanup EXIT
-
-# --- ASCII Art Banner ---
-print_banner() {
-    echo -e "\e[1;34m"
-    echo "========================================="
-    echo "   Lordmoritz Fortify v2.1.8 ⚡"
-    echo "   Ultimate Auto-Hardening Script"
-    echo "========================================="
-    echo -e "\e[0m"
+    apt install -y clamav rkhunter aide fail2ban ufw unattended-upgrades >> "${FORTIFY_LOG}" 2>&1 || die "Failed to install required packages"
 }
 
 # --- Main Execution ---
-print_banner
 verify_command
 check_root
 check_ubuntu_version
@@ -372,13 +146,17 @@ chown root:adm "${LOGDIR}"
 chmod 750 "${LOGDIR}"
 touch "${FORTIFY_LOG}" || die "Failed to create log file: ${FORTIFY_LOG}"
 
-log_success "=== [Lordmoritz Fortify v2.1.8 Start] ==="
+log_success "=== [Lordmoritz Fortify v2.1.1 Start] ==="
 
 # Phase 1: Install Essentials
 install_apt_packages
 
 # Phase 2: Configure UFW Firewall
-configure_ufw_ports
+log "Configuring UFW firewall..."
+ufw allow OpenSSH >> "${FORTIFY_LOG}" 2>&1 || log_error "Failed to allow OpenSSH in UFW"
+if ! ufw --force enable >> "${FORTIFY_LOG}" 2>&1; then
+    log_warn "UFW enable failed; firewall may already be active"
+fi
 
 # Phase 3: Schedule Nightly Scans
 if [[ "${SKIP_HEAVY_SCANS}" != "true" ]]; then
