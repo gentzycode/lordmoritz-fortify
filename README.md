@@ -11,13 +11,21 @@ The Ultimate Script for Automated Ubuntu VM Hardening, Healing, and MonitoringBu
 ✨ Features
 
 ✅ Automated Security Tool Installation: ClamAV, RKHunter, AIDE, Fail2Ban, UFW, and unattended-upgrades.
+
 ✅ Firewall and SSH Hardening: Configures UFW and secures SSH with no root login and key-based authentication.
+
 ✅ Nightly Security Scans: Scheduled scans for malware, rootkits, and filesystem integrity.
+
 ✅ Self-Healing: Automatically fixes Fail2Ban database corruption and finalizes AIDE databases.
+
 ✅ Automatic Updates: Enables unattended security patches with optional auto-reboot.
+
 ✅ Low Resource Usage: Optimized for minimal system impact with --skip-heavy-scans option.
-✅ Self-Upgrading: Updates itself via lordmoritz upgrade me command with version check.
+
+✅ Self-Upgrading: Updates itself via lordmoritz upgrade me command.
+
 ✅ Detailed Logging: Comprehensive reports in /var/log/security-reports/.
+
 ✅ UFW Rules Backup: Automatically backs up UFW rules before modification (introduced in v2.1.2).
 ✅ Progress Spinner: Visual feedback during long operations (introduced in v2.1.3).
 ✅ IP Restriction for Databases: Option to restrict MySQL/PostgreSQL to specific IPs (introduced in v2.1.3).
