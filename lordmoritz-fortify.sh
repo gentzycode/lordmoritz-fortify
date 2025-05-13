@@ -1,10 +1,10 @@
 #!/bin/bash
 # ======================================================
-# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.7
+# Lordmoritz Fortify Script - Ultimate Auto-Hardening v2.1.8
 # Author: Chinonso Okoye (Lordmoritz / Gentmorris / Gentzycode)
 # Purpose: Fully automate Ubuntu VM hardening, monitoring, healing, and self-upgrading
 # License: MIT
-# Last Updated: 2025-05-13 23:35 WAT
+# Last Updated: 2025-05-13 23:52 WAT
 # ======================================================
 
 set -e  # Immediate exit on any error
@@ -125,7 +125,7 @@ self_upgrade() {
     # Check for latest version
     local latest_version
     latest_version=$(curl -s https://api.github.com/repos/gentzycode/lordmoritz-fortify/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
-    if [[ "${latest_version}" != "v2.1.7" ]]; then
+    if [[ "${latest_version}" != "v2.1.8" ]]; then
         log_warn "Newer version ${latest_version} available! Consider updating manually."
     fi
     if ! git pull origin main >> "${FORTIFY_LOG}" 2>&1; then
@@ -161,7 +161,8 @@ install_apt_packages() {
     rm -f /var/lib/dpkg/lock-frontend /var/cache/apt/archives/lock 2>/dev/null
     spinner_start "Updating package lists"
     while [[ ${attempt} -le ${retries} ]]; do
-        if apt update >> "${FORTIFY_LOG}" 2>&1; then
+        # Run apt update in a subshell to avoid set -e exit
+        if (apt update >> "${FORTIFY_LOG}" 2>&1); then
             spinner_stop
             break
         else
@@ -352,7 +353,7 @@ trap cleanup EXIT
 print_banner() {
     echo -e "\e[1;34m"
     echo "========================================="
-    echo "   Lordmoritz Fortify v2.1.7 ⚡"
+    echo "   Lordmoritz Fortify v2.1.8 ⚡"
     echo "   Ultimate Auto-Hardening Script"
     echo "========================================="
     echo -e "\e[0m"
@@ -371,7 +372,7 @@ chown root:adm "${LOGDIR}"
 chmod 750 "${LOGDIR}"
 touch "${FORTIFY_LOG}" || die "Failed to create log file: ${FORTIFY_LOG}"
 
-log_success "=== [Lordmoritz Fortify v2.1.7 Start] ==="
+log_success "=== [Lordmoritz Fortify v2.1.8 Start] ==="
 
 # Phase 1: Install Essentials
 install_apt_packages
